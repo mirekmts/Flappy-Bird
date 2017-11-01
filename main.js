@@ -13,8 +13,8 @@ var canvas,
         Splash: 0, Game: 1, Score: 2
     },
     bird = {
-        x: 80,
-        y: 100,
+        x: 60,
+        y: 0,
         frame: 0,
         velocity: 0,
         animation: [0, 1, 2, 1],
@@ -29,6 +29,29 @@ var canvas,
             var n = currentState === states.Splash ? 10 : 5;
             this.frame += frames % n === 0 ? 1 : 0;
             this.frame %= this.animation.length;
+
+            if (currentState === states.Splash) {
+                this.y = height - 280 + 5 * Math.cos(frames/10);
+            } else {
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+
+                if (this.y >= height - s_fg.height - 10) {
+                    this.y = height - s_fg.height - 10;
+
+                    if (currentState === states.Game) {
+                        currentState = states.Score;
+                    }
+                    this.velocity = this._jump;
+                }
+
+                if (this.velocity >= this._jump) {
+                    this.frame = 1;
+                    this.rotation = Math.min(Math.PI/3, this.rotation + 0.3);
+                } else {
+                    this.rotation = -0.3;
+                }
+            }
         },
         draw: function(ctx) {
 
@@ -41,13 +64,61 @@ var canvas,
         }
     },
     pipes = {
-        update: function() {
+
+        _pipes: [],
+
+        reset: function() {
+            this._pipes = [];
 
         },
-        draw: function() {
+        update: function() {
+            if (frames % 100 === 0) {
+                var _y = height - (s_pipeSouth.height + s_fg.height + 120 + 200*Math.random());
+                this._pipes.push({
+                    x: 500,
+                    y: _y,
+                    width: s_pipeSouth.width,
+                    height: s_pipeSouth.height
+                });
+            }
 
+            for (var i = 0, len = this._pipes.length; i < len; i++) {
+                var p = this._pipes[i];
+
+                p.x -= 2;
+                if (p.x < -50) {
+                    this._pipes.splice(i, 1);
+                    i--;
+                    len--;
+                }
+            }
+        },
+        draw: function() {
+            for (var i = 0, len = this._pipes.length; i < len; i++) {
+                var p = this._pipes[i];
+                s_pipeSouth.draw(ctx, p.x, p.y);
+                s_pipeNorth.draw(ctx, p.x, p.y + 80 + p.height);
+            }
         }
     };
+
+function onPress(evt) {
+
+    switch (currentState) {
+        case states.Splash:
+            currentState = states.Game;
+            bird.jump();
+            break;
+        case states.Game:
+            bird.jump();
+            break;
+        case states.Score:
+
+            break;
+        default:
+
+    }
+}
 
 function main() {
     canvas = document.createElement("canvas");
@@ -55,12 +126,17 @@ function main() {
     width = window.innerWidth;
     height = window.innerHeight;
 
+    var evt = "touchstart";
+
     if( width >= 500) {
         width = 320;
         height = 480;
         canvas.style.border = "1px solid #000";
-
+        evt = 'mousedown';
     };
+
+    document.addEventListener(evt, onPress);
+
     currentState = states.Splash;
     canvas.width = width;
     canvas.height = height;
@@ -90,9 +166,14 @@ function run() {
 
 function update() {
     frames++;
-    fgpos = ( fgpos - 2 ) % 14;
+    if (currentState !== states.Score) {
+        fgpos = ( fgpos - 2 ) % 14;
+    }
+
+    if (currentState === states.Game) {
+        pipes.update();
+    }
     bird.update();
-    pipes.update();
 }
 
 function render() {
@@ -105,6 +186,12 @@ function render() {
 
     s_fg.draw(ctx, fgpos, height - s_fg.height);
     s_fg.draw(ctx, fgpos + s_fg.width, height - s_fg.height);
+
+
+    if (currentState === states.Splash) {
+        s_splash.draw(ctx, (width / 2) - s_splash.width/2, height - 300);
+        s_text.GetReady.draw(ctx, (width / 2) - s_text.GetReady.width/2, height - 380);
+    }
 }
 
 main();
